@@ -148,6 +148,24 @@ e.preventDefault();
 },{passive:false});
 
 
+// reiniciar com clique ou toque
+canvas.addEventListener("click", ()=>{
+
+if(gameOver){
+resetGame();
+}
+
+});
+
+canvas.addEventListener("touchstart", ()=>{
+
+if(gameOver){
+resetGame();
+}
+
+});
+
+
 // spawn inimigos
 function spawnEnemy(){
 
@@ -224,15 +242,6 @@ clearInterval(enemySpawner);
 startSpawner();
 
 }
-
-
-document.addEventListener("keydown",(e)=>{
-
-if(e.key==="Enter" && gameOver){
-resetGame();
-}
-
-});
 
 
 // update
@@ -329,7 +338,7 @@ ctx.font="bold 80px Arial";
 ctx.fillText("GAME OVER",BASE_WIDTH/2,BASE_HEIGHT/2-40);
 
 ctx.font="28px Arial";
-ctx.fillText("Pressione ENTER para reiniciar",BASE_WIDTH/2,BASE_HEIGHT/2+40);
+ctx.fillText("Clique na tela para reiniciar",BASE_WIDTH/2,BASE_HEIGHT/2+40);
 
 }
 
