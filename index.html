@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>etudo Runner</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+body{
+margin:0;
+background:white;
+display:flex;
+justify-content:center;
+align-items:center;
+min-height:100vh;
+}
+
+canvas{
+background:black;
+}
+
+</style>
+
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+
+const BASE_WIDTH = 1138;
+const BASE_HEIGHT = 640;
+
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+let scale = 1;
+
+function resizeCanvas(){
+
+const screenW = window.innerWidth;
+const screenH = window.innerHeight;
+
+const scaleX = screenW / BASE_WIDTH;
+const scaleY = screenH / BASE_HEIGHT;
+
+scale = Math.min(scaleX, scaleY);
+
+canvas.width = BASE_WIDTH * scale;
+canvas.height = BASE_HEIGHT * scale;
+
+ctx.setTransform(scale,0,0,scale,0,0);
+
+}
+
+window.addEventListener("resize", resizeCanvas);
+window.addEventListener("load", resizeCanvas);
+
+
+let gameRunning = true;
+let gameOver = false;
+
+let startTime = performance.now();
+let elapsedTime = 0;
+let bestTime = 0;
+
+
+// dificuldade
+let enemySpeedMultiplier = 1;
+let spawnInterval = 2000;
+let difficultyLevel = 0;
+const MAX_DIFFICULTY = 10;
+
+let enemySpawner;
+
+
+// imagens
+const shipImage = new Image();
+shipImage.src = "etudo_nave.png";
+
+const enemyImage = new Image();
+enemyImage.src = "monstro_sprite.png";
+
+
+// nave
+let ship = {
+x:120,
+y:BASE_HEIGHT/2 - 60,
+width:220,
+height:110
+};
+
+
+// entidades
+let enemies = [];
+let stars = [];
+
+
+for(let i=0;i<150;i++){
+
+stars.push({
+x:Math.random()*BASE_WIDTH,
+y:Math.random()*BASE_HEIGHT,
+size:Math.random()*2
+});
+
+}
+
+
+// controles
+let dragging=false;
+
+function getPointerY(e){
+
+const rect = canvas.getBoundingClientRect();
+
+if(e.touches){
+return (e.touches[0].clientY - rect.top)/scale;
+}
+
+return (e.clientY - rect.top)/scale;
+
+}
+
+function pointerMove(e){
+
+if(!dragging || !gameRunning) return;
+
+let y = getPointerY(e);
+
+ship.y = y - ship.height/2;
+
+ship.y = Math.max(0,Math.min(BASE_HEIGHT-ship.height,ship.y));
+
+}
+
+canvas.addEventListener("mousedown",()=>dragging=true);
+canvas.addEventListener("mouseup",()=>dragging=false);
+canvas.addEventListener("mousemove",pointerMove);
+
+canvas.addEventListener("touchstart",()=>dragging=true);
+canvas.addEventListener("touchend",()=>dragging=false);
+canvas.addEventListener("touchmove",(e)=>{
+pointerMove(e);
+e.preventDefault();
+},{passive:false});
+
+
+// spawn inimigos
+function spawnEnemy(){
+
+if(!gameRunning) return;
+
+const enemyHeight=40;
+const scaleEnemy=enemyHeight/1197;
+const enemyWidth=2276*scaleEnemy;
+
+const shipCenter=ship.y+ship.height/2;
+
+const range=ship.height*1.2;
+const randomOffset=(Math.random()-0.5)*range;
+
+let enemyY=shipCenter-enemyHeight/2+randomOffset;
+
+enemyY=Math.max(0,Math.min(BASE_HEIGHT-enemyHeight,enemyY));
+
+enemies.push({
+
+x:BASE_WIDTH,
+y:enemyY,
+width:enemyWidth,
+height:enemyHeight,
+speed:4*enemySpeedMultiplier
+
+});
+
+}
+
+
+function startSpawner(){
+
+enemySpawner=setInterval(spawnEnemy,spawnInterval);
+
+}
+
+
+// dificuldade
+function increaseDifficulty(){
+
+if(difficultyLevel>=MAX_DIFFICULTY) return;
+
+difficultyLevel++;
+
+enemySpeedMultiplier*=1.01;
+spawnInterval*=0.99;
+
+clearInterval(enemySpawner);
+startSpawner();
+
+}
+
+setInterval(increaseDifficulty,10000);
+
+
+// reset
+function resetGame(){
+
+enemies.length=0;
+
+ship.y=BASE_HEIGHT/2-60;
+
+gameRunning=true;
+gameOver=false;
+
+startTime=performance.now();
+
+enemySpeedMultiplier=1;
+spawnInterval=2000;
+difficultyLevel=0;
+
+clearInterval(enemySpawner);
+startSpawner();
+
+}
+
+
+document.addEventListener("keydown",(e)=>{
+
+if(e.key==="Enter" && gameOver){
+resetGame();
+}
+
+});
+
+
+// update
+function update(){
+
+if(!gameRunning) return;
+
+elapsedTime=performance.now()-startTime;
+
+enemies.forEach((enemy,ei)=>{
+
+enemy.x-=enemy.speed;
+
+if(enemy.x+enemy.width<0){
+enemies.splice(ei,1);
+}
+
+if(
+
+ship.x<enemy.x+enemy.width &&
+ship.x+ship.width>enemy.x &&
+ship.y<enemy.y+enemy.height &&
+ship.y+ship.height>enemy.y
+
+){
+
+gameRunning=false;
+gameOver=true;
+
+if(elapsedTime>bestTime){
+bestTime=elapsedTime;
+}
+
+}
+
+});
+
+}
+
+
+// formatar tempo
+function formatTime(ms){
+
+let s=Math.floor(ms/1000);
+let m=Math.floor(ms%1000).toString().padStart(3,"0");
+
+return s+"."+m+"s";
+
+}
+
+
+// draw
+function draw(){
+
+ctx.clearRect(0,0,BASE_WIDTH,BASE_HEIGHT);
+
+ctx.fillStyle="white";
+
+stars.forEach(star=>{
+
+ctx.fillRect(star.x,star.y,star.size,star.size);
+
+star.x-=0.3;
+
+if(star.x<0) star.x=BASE_WIDTH;
+
+});
+
+
+ctx.drawImage(shipImage,ship.x,ship.y,ship.width,ship.height);
+
+enemies.forEach(enemy=>{
+ctx.drawImage(enemyImage,enemy.x,enemy.y,enemy.width,enemy.height);
+});
+
+
+ctx.fillStyle="white";
+ctx.font="24px Arial";
+ctx.textAlign="left";
+
+ctx.fillText("Tempo: "+formatTime(elapsedTime),20,40);
+ctx.fillText("Melhor: "+formatTime(bestTime),20,70);
+
+
+if(gameOver){
+
+ctx.fillStyle="rgba(0,0,0,0.7)";
+ctx.fillRect(0,0,BASE_WIDTH,BASE_HEIGHT);
+
+ctx.fillStyle="white";
+ctx.textAlign="center";
+
+ctx.font="bold 80px Arial";
+ctx.fillText("GAME OVER",BASE_WIDTH/2,BASE_HEIGHT/2-40);
+
+ctx.font="28px Arial";
+ctx.fillText("Pressione ENTER para reiniciar",BASE_WIDTH/2,BASE_HEIGHT/2+40);
+
+}
+
+}
+
+
+// loop
+function gameLoop(){
+
+update();
+draw();
+
+requestAnimationFrame(gameLoop);
+
+}
+
+
+// start
+let imagesLoaded=0;
+
+function checkStart(){
+
+imagesLoaded++;
+
+if(imagesLoaded===2){
+
+resizeCanvas();
+startSpawner();
+gameLoop();
+
+}
+
+}
+
+shipImage.onload=checkStart;
+enemyImage.onload=checkStart;
+
+</script>
+
+</body>
+</html>
